@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cue — The keyboard-first command bar for macOS</title>
+  <meta name="description" content="Cue is a fast, keyboard-first launcher for macOS power users. Open it, type, done. No animation tax." />
+  <style>
+    :root {
+      --bg:        #fbfbfd;
+      --surface:   #ffffff;
+      --ink:       #1d1d1f;
+      --muted:     #6e6e73;          /* 4.6:1 on --bg */
+      --faint:     #86868b;
+      --line:      #e6e6ea;
+      --accent:    #5e5ce6;          /* Apple system indigo */
+      --accent-ink:#ffffff;
+
+      /* palette (dark, Raycast-like) */
+      --pal-bg:    #1c1c1f;
+      --pal-row:   #2a2a2e;
+      --pal-line:  rgba(255,255,255,0.08);
+      --pal-ink:   #f5f5f7;
+      --pal-muted: #98989f;
+
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      --mono: ui-monospace, "SF Mono", "Menlo", monospace;
+
+      /* Emil's stronger curves */
+      --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+      letter-spacing: -0.011em;
+    }
+    a { color: inherit; text-decoration: none; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
+    kbd {
+      font-family: var(--mono); font-size: 0.78em; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 1.5em; padding: 0.32em 0.45em; border-radius: 6px;
+      background: var(--surface); color: var(--muted);
+      border: 1px solid var(--line); box-shadow: 0 1px 0 var(--line);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wrap { width: min(92vw, 1080px); margin-inline: auto; }
+
+    /* press feedback — applies to every pressable element (Emil: buttons must feel responsive) */
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font: inherit; font-weight: 590; font-size: 0.96rem; cursor: pointer;
+      padding: 0.7rem 1.15rem; border-radius: 11px; border: 1px solid transparent;
+      transition: transform 140ms var(--ease-out), background-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+    }
+    .btn:active { transform: scale(0.97); }       /* never animate keyboard actions, but a press is direct manipulation */
+    .btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 1px 2px rgba(94,92,230,0.4), 0 6px 20px -8px rgba(94,92,230,0.5); }
+    .btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
+    @media (hover: hover) and (pointer: fine) {
+      .btn-primary:hover { background: #4f4dd6; }
+      .btn-ghost:hover { background: #f2f2f5; }
+    }
+
+    /* ---- nav ---- */
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 0; }
+    .brand { display: flex; align-items: center; gap: 0.55rem; font-weight: 640; font-size: 1.06rem; }
+    .brand .mark { width: 22px; height: 22px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; color: #fff; box-shadow: 0 2px 8px -2px rgba(94,92,230,0.6); }
+    .nav-right { display: flex; align-items: center; gap: 1.6rem; }
+    .nav-right a.txt { color: var(--muted); font-size: 0.94rem; transition: color 140ms var(--ease-out); }
+    @media (hover: hover) and (pointer: fine) { .nav-right a.txt:hover { color: var(--ink); } }
+
+    /* ---- hero ---- */
+    .hero { text-align: center; padding: 4rem 0 1rem; }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 680; line-height: 1.02;
+      letter-spacing: -0.035em; text-wrap: balance; margin-bottom: 1.1rem;
+    }
+    .hero h1 .grad { color: var(--accent); }
+    .hero p.lede { color: var(--muted); font-size: clamp(1.05rem, 2vw, 1.25rem); max-width: 36ch; margin: 0 auto 1.8rem; text-wrap: pretty; }
+    .hero-cta { display: flex; gap: 0.75rem; justify-content: center; align-items: center; flex-wrap: wrap; }
+    .openhint { margin-top: 1.4rem; color: var(--faint); font-size: 0.88rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+
+    /* ---- the command bar (the product) ---- */
+    .palette-stage { padding: 3rem 0 1rem; perspective: 1400px; }
+    .palette {
+      width: min(92vw, 600px); margin: 0 auto;
+      background: var(--pal-bg); border-radius: 16px;
+      border: 1px solid var(--pal-line);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 40px 80px -28px rgba(20,20,30,0.45), 0 12px 28px -16px rgba(20,20,30,0.3);
+      overflow: hidden; color: var(--pal-ink); text-align: left;
+    }
+    .pal-input-row { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.15rem; border-bottom: 1px solid var(--pal-line); }
+    .pal-input-row svg { flex: none; color: var(--pal-muted); }
+    #cmd { flex: 1; background: transparent; border: none; outline: none; color: var(--pal-ink); font: inherit; font-size: 1.05rem; letter-spacing: -0.01em; }
+    #cmd::placeholder { color: var(--pal-muted); }
+    .pal-esc { font-family: var(--mono); font-size: 0.72rem; color: var(--pal-muted); border: 1px solid var(--pal-line); border-radius: 5px; padding: 0.2em 0.4em; }
+
+    .pal-list { max-height: 320px; overflow-y: auto; padding: 0.5rem; }
+    .pal-section { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--pal-muted); padding: 0.5rem 0.6rem 0.35rem; }
+    .row {
+      display: flex; align-items: center; gap: 0.8rem; padding: 0.6rem 0.65rem; border-radius: 9px;
+      cursor: pointer; /* NO transition: list navigation happens dozens of times/min — highlight is instant */
+    }
+    .row[hidden] { display: none; }
+    .row.selected { background: var(--pal-row); }
+    .row .ic { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; flex: none; background: rgba(255,255,255,0.06); color: var(--pal-ink); }
+    .row .ic.a { background: rgba(94,92,230,0.22); color: #b6b4ff; }
+    .row .ic.b { background: rgba(48,209,88,0.18); color: #7ee297; }
+    .row .ic.c { background: rgba(255,159,10,0.18); color: #ffca7a; }
+    .row .label { flex: 1; font-size: 0.95rem; }
+    .row .label small { display: block; color: var(--pal-muted); font-size: 0.78rem; }
+    .row .hint { font-family: var(--mono); font-size: 0.74rem; color: var(--pal-muted); }
+    .pal-empty { padding: 1.5rem 0.65rem; color: var(--pal-muted); font-size: 0.92rem; text-align: center; }
+    .pal-empty[hidden] { display: none; }
+
+    .pal-foot { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1rem; border-top: 1px solid var(--pal-line); font-size: 0.78rem; color: var(--pal-muted); }
+    .pal-foot .keys { display: flex; align-items: center; gap: 0.9rem; }
+    .pal-foot .keys span { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .pal-foot .keys b { font-family: var(--mono); font-weight: 500; border: 1px solid var(--pal-line); border-radius: 4px; padding: 0.1em 0.35em; }
+    .pal-status { color: #7ee297; font-variant-numeric: tabular-nums; }
+
+    /* first-load stagger (decorative, first-time only — never on filter) */
+    .stagger .row { opacity: 0; transform: translateY(6px); animation: rowIn 360ms var(--ease-out) forwards; }
+    .stagger .row:nth-child(2) { animation-delay: 40ms; }
+    .stagger .row:nth-child(3) { animation-delay: 80ms; }
+    .stagger .row:nth-child(4) { animation-delay: 120ms; }
+    .stagger .row:nth-child(5) { animation-delay: 160ms; }
+    .stagger .row:nth-child(6) { animation-delay: 200ms; }
+    @keyframes rowIn { to { opacity: 1; transform: translateY(0); } }
+
+    /* ---- features ---- */
+    section.features { padding: 6rem 0 4rem; }
+    .feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+    .feat {
+      background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 1.6rem;
+    }
+    .feat .fi { width: 38px; height: 38px; border-radius: 10px; background: #f0f0fb; color: var(--accent); display: grid; place-items: center; margin-bottom: 1rem; }
+    .feat h3 { font-size: 1.06rem; font-weight: 620; margin-bottom: 0.35rem; letter-spacing: -0.015em; }
+    .feat p { color: var(--muted); font-size: 0.94rem; }
+
+    /* ---- the details section (Emil's thesis) ---- */
+    section.details { padding: 4rem 0 5rem; }
+    .details-card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: clamp(2rem, 5vw, 3.5rem); text-align: center; }
+    .details-card h2 { font-size: clamp(1.7rem, 4vw, 2.5rem); font-weight: 660; letter-spacing: -0.03em; text-wrap: balance; }
+    .details-card p { color: var(--muted); max-width: 52ch; margin: 1rem auto 0; font-size: 1.05rem; text-wrap: pretty; }
+    .details-card .chips { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; margin-top: 1.75rem; }
+    .chip { font-size: 0.84rem; color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 0.4rem 0.85rem; }
+
+    /* ---- footer ---- */
+    footer { border-top: 1px solid var(--line); padding: 2.5rem 0; }
+    footer .wrap { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+    footer .muted { color: var(--faint); font-size: 0.85rem; }
+    footer .fl { display: flex; gap: 1.5rem; }
+    footer .fl a { color: var(--muted); font-size: 0.9rem; transition: color 140ms var(--ease-out); }
+    @media (hover: hover) and (pointer: fine) { footer .fl a:hover { color: var(--ink); } }
+
+    /* scroll reveal — enter only, ease-out, no scale(0); small + subtle */
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity 500ms var(--ease-out), transform 500ms var(--ease-out); }
+    .reveal.in { opacity: 1; transform: none; }
+
+    @media (max-width: 760px) {
+      .feat-grid { grid-template-columns: 1fr; }
+      .nav-right .txt { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stagger .row { animation: none; opacity: 1; transform: none; }
+      .reveal { transition: opacity 200ms ease; transform: none; }
+      .btn:active { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="brand" href="#top">
+        <span class="mark"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+        Cue
+      </a>
+      <div class="nav-right">
+        <a class="txt" href="#features">Features</a>
+        <a class="txt" href="#details">Craft</a>
+        <a class="txt" href="#download">Changelog</a>
+        <a class="btn btn-ghost" href="#download">Download</a>
+      </div>
+    </nav>
+  </div>
+
+  <main id="top">
+    <header class="hero wrap">
+      <h1>Open it. Type. <span class="grad">Done.</span></h1>
+      <p class="lede">Cue is a keyboard-first command bar for macOS. The fastest path between a thought and the thing you wanted.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" id="download" href="#download">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.9c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.5-.1-2.8.8-3.5.8s-1.9-.8-3-.8c-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7 2-1.1 2.8-2.2c.9-1.3 1.2-2.5 1.3-2.6-.1 0-2.5-1-2.5-3.8zM14.3 5.9c.6-.8 1.1-1.9 1-3-1 0-2.1.6-2.8 1.4-.6.7-1.1 1.8-1 2.8 1.1.1 2.2-.5 2.8-1.2z"/></svg>
+          Download for Mac
+        </a>
+        <a class="btn btn-ghost" href="#features">See what it does</a>
+      </div>
+      <div class="openhint">Press <kbd>⌘</kbd><kbd>K</kbd> — it opens instantly. No animation, because you'll do it a hundred times a day.</div>
+    </header>
+
+    <!-- the product: a real, interactive command bar -->
+    <section class="palette-stage" aria-label="Cue command bar demo">
+      <div class="palette reveal">
+        <div class="pal-input-row">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <input id="cmd" type="text" placeholder="Search for apps and commands…" autocomplete="off" spellcheck="false" aria-label="Command input" />
+          <span class="pal-esc">esc</span>
+        </div>
+        <div class="pal-list stagger" id="list">
+          <div class="pal-section">Suggestions</div>
+          <div class="row selected" data-name="Open Application"><span class="ic a"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="label">Open Application<small>Launch any app on your Mac</small></span><span class="hint">⏎</span></div>
+          <div class="row" data-name="Search Files"><span class="ic b"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z"/><path d="M13 3v6h6"/></svg></span><span class="label">Search Files<small>Find anything by name or content</small></span><span class="hint">⌘F</span></div>
+          <div class="row" data-name="Clipboard History"><span class="ic c"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></span><span class="label">Clipboard History<small>Everything you've copied, searchable</small></span><span class="hint">⌘⇧V</span></div>
+          <div class="row" data-name="Window Management"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg></span><span class="label">Snap Window Left<small>Tile the focused window</small></span><span class="hint">⌃⌥←</span></div>
+          <div class="row" data-name="Run Snippet"><span class="ic a"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/></svg></span><span class="label">Run Text Snippet<small>Expand saved snippets anywhere</small></span><span class="hint">⌘'</span></div>
+          <div class="row" data-name="Calculator"><span class="ic b"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></svg></span><span class="label">Calculate &amp; Convert<small>Math, units, currencies inline</small></span><span class="hint">=</span></div>
+          <div class="pal-empty" id="empty" hidden>No commands match. Try something else.</div>
+        </div>
+        <div class="pal-foot">
+          <div class="keys">
+            <span><b>↑↓</b> navigate</span>
+            <span><b>⏎</b> open</span>
+            <span><b>esc</b> close</span>
+          </div>
+          <div class="pal-status" id="status">Ready</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features wrap" id="features">
+      <div class="feat-grid">
+        <article class="feat reveal">
+          <div class="fi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></div>
+          <h3>Zero open latency</h3>
+          <p>The bar appears the instant you press the hotkey. No fade, no scale, no tax on the thing you do all day.</p>
+        </article>
+        <article class="feat reveal">
+          <div class="fi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <h3>Fuzzy that reads your mind</h3>
+          <p>Type three letters, get the right result first. Ranking learns from what you actually pick.</p>
+        </article>
+        <article class="feat reveal">
+          <div class="fi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg></div>
+          <h3>Extensible by design</h3>
+          <p>Snippets, window tiling, clipboard history, scripts. Build your own commands in a few lines.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="details wrap" id="details">
+      <div class="details-card reveal">
+        <h2>The details you'll never notice are the ones doing the work.</h2>
+        <p>Highlight that moves with no lag. A press that scales just enough to feel heard. Motion that shows up only when it earns its place. A thousand barely-audible voices, singing in tune.</p>
+        <div class="chips">
+          <span class="chip">Instant on keyboard</span>
+          <span class="chip">scale(0.97) on press</span>
+          <span class="chip">Custom easing curves</span>
+          <span class="chip">Respects reduced-motion</span>
+          <span class="chip">Stagger on first paint only</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="download">
+    <div class="wrap">
+      <a class="brand" href="#top"><span class="mark"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span> Cue</a>
+      <div class="fl"><a href="#features">Features</a><a href="#details">Craft</a><a href="#download">Changelog</a><a href="#top">Privacy</a></div>
+      <span class="muted">© 2026 Cue · macOS 13+</span>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const input  = document.getElementById('cmd');
+      const list   = document.getElementById('list');
+      const empty  = document.getElementById('empty');
+      const status = document.getElementById('status');
+      const rows   = () => [...list.querySelectorAll('.row')];
+
+      // First-load stagger runs once, then we strip the class so filtering never re-animates.
+      list.addEventListener('animationend', () => list.classList.remove('stagger'), { once: true });
+      setTimeout(() => list.classList.remove('stagger'), 700); // safety for reduced-motion
+
+      const visible = () => rows().filter(r => !r.hidden);
+      function select(row) {
+        rows().forEach(r => r.classList.remove('selected'));
+        if (row) { row.classList.add('selected'); row.scrollIntoView({ block: 'nearest' }); }
+      }
+
+      // Filtering is INSTANT — no show/hide animation. This is done dozens of times per session.
+      function filter() {
+        const q = input.value.trim().toLowerCase();
+        let firstVisible = null;
+        rows().forEach(r => {
+          const hit = r.dataset.name.toLowerCase().includes(q);
+          r.hidden = !hit;
+          if (hit && !firstVisible) firstVisible = r;
+        });
+        empty.hidden = !!firstVisible;
+        select(firstVisible);
+      }
+
+      // Keyboard nav: instant highlight (frequent action → no motion, per the framework).
+      function move(dir) {
+        const vis = visible();
+        if (!vis.length) return;
+        let i = vis.findIndex(r => r.classList.contains('selected'));
+        i = (i + dir + vis.length) % vis.length;
+        select(vis[i]);
+      }
+
+      input.addEventListener('input', filter);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+        else if (e.key === 'Enter') {
+          const sel = list.querySelector('.row.selected');
+          if (sel) { status.textContent = '▸ ' + sel.dataset.name; }
+        } else if (e.key === 'Escape') { input.value = ''; filter(); input.blur(); status.textContent = 'Ready'; }
+      });
+
+      // ⌘K / Ctrl+K focuses the bar with ZERO animation — the whole point of the product.
+      window.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          input.focus(); input.select();
+          status.textContent = 'Opened — 0ms';
+        }
+      });
+
+      // Click a row to "run" it (direct manipulation gets a tiny status confirmation).
+      list.addEventListener('click', (e) => {
+        const row = e.target.closest('.row');
+        if (row) { select(row); status.textContent = '▸ ' + row.dataset.name; }
+      });
+
+      // Scroll reveals — enter once, then stop observing.
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+      }, { threshold: 0.15, rootMargin: '0px 0px -6% 0px' });
+      document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+    })();
+  </script>
+</body>
+</html>
