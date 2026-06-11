@@ -22,6 +22,8 @@ GSAP Timeline → Tweens → ScrollTrigger → MotionPath → Flip → more...
 
 Official AI skills for [GSAP](https://gsap.com) (GreenSock Animation Platform). They teach agents correct GSAP usage: core API, timelines, ScrollTrigger, plugins, React/Vue/Svelte, vanilla JS and performance. [Agent Skills](https://agentskills.io) format; works with the [skills CLI](https://github.com/vercel-labs/skills) (Cursor, Claude Code, Codex, Windsurf, Copilot, 40+ agents).
 
+> 📌 **Upstream contribution:** Doc and example fixes from this fork were submitted upstream in [greensock/gsap-skills#10](https://github.com/greensock/gsap-skills/pull/10).
+
 > **GSAP is 100% free** — including every plugin. Following [Webflow's acquisition of GSAP](https://gsap.com/blog/webflow-GSAP/), all formerly Club GSAP plugins (**SplitText**, **MorphSVG**, etc.) are free for everyone, including commercial use. Install everything from the public `gsap` npm package — no Club membership, no `.npmrc` / auth token, no private registry required.
 
 ![Claude Skill](https://img.shields.io/badge/Claude-Skill-purple)
