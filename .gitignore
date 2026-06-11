@@ -28,3 +28,5 @@ build/
 tmp/
 temp/
 *.tmp
+# graphify knowledge-graph output (local only)
+graphify-out/
