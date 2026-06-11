@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tempo — Deep-work timer for developers</title>
+  <meta name="description" content="Tempo is a focus timer built for developers. Protect deep-work blocks, silence the noise, and ship in flow." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Developer Mono pairing (per ui-ux-pro-max typography search): JetBrains Mono + IBM Plex Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      /* palette from --design-system: focus red + break green on slate, cinematic dark */
+      --bg:         #0b1120;
+      --surface:    #111a2e;
+      --surface-2:  #16213a;
+      --fg:         #f5f8ff;
+      --muted:      #9fb0cc;          /* ~5.6:1 on --bg, passes body contrast */
+      --border:     rgba(255,255,255,0.09);
+
+      --focus:      #f04438;          /* focus session (brand) */
+      --focus-2:    #ff6a5e;
+      --break:      #10b981;          /* break state */
+      --on-accent:  #ffffff;
+
+      --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);   /* Expo.out, per skill effects */
+
+      --z-bg: 0; --z-base: 1; --z-nav: 40;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    :focus-visible { outline: 2px solid var(--focus-2); outline-offset: 3px; border-radius: 6px; }
+
+    .wrap { width: min(92vw, 1100px); margin-inline: auto; }
+
+    /* ---------- ambient glows ---------- */
+    .ambient { position: fixed; inset: 0; z-index: var(--z-bg); pointer-events: none; overflow: hidden; }
+    .blob { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(90px); opacity: 0.42; }
+    .blob-a { background: radial-gradient(circle, rgba(240,68,56,0.55), transparent 60%); top: -16%; left: -8%; animation: drift1 22s var(--ease-out) infinite alternate; }
+    .blob-b { background: radial-gradient(circle, rgba(16,185,129,0.40), transparent 60%); bottom: -22%; right: -10%; animation: drift2 26s var(--ease-out) infinite alternate; }
+    @keyframes drift1 { to { transform: translate(8vw, 6vh); } }
+    @keyframes drift2 { to { transform: translate(-7vw, -5vh); } }
+
+    /* ---------- nav ---------- */
+    header {
+      position: sticky; top: 0; z-index: var(--z-nav);
+      backdrop-filter: blur(14px);
+      background: rgba(11,17,32,0.6);
+      border-bottom: 1px solid var(--border);
+    }
+    nav { display: flex; align-items: center; justify-content: space-between; height: 68px; }
+    .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
+    .brand .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--focus); box-shadow: 0 0 14px var(--focus); }
+    .nav-links { display: flex; align-items: center; gap: 2rem; }
+    .nav-links a.txt { color: var(--muted); font-size: 0.94rem; transition: color 0.2s var(--ease-out); }
+    .nav-links a.txt:hover { color: var(--fg); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      font-family: var(--font-sans); font-weight: 600; font-size: 0.95rem;
+      padding: 0.7rem 1.25rem; border-radius: 11px; cursor: pointer; border: 1px solid transparent;
+      transition: transform 0.18s var(--ease-out), background 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+      min-height: 44px;
+    }
+    .btn-primary { background: var(--focus); color: var(--on-accent); box-shadow: 0 8px 30px -8px rgba(240,68,56,0.6); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 40px -10px rgba(240,68,56,0.75); }
+    .btn-primary:active { transform: translateY(0) scale(0.98); }
+    .btn-ghost { background: rgba(255,255,255,0.04); color: var(--fg); border-color: var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.09); }
+
+    /* ---------- hero ---------- */
+    .hero { position: relative; z-index: var(--z-base); padding: clamp(3rem, 9vw, 6.5rem) 0 clamp(3rem, 7vw, 5rem); }
+    .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(2rem, 5vw, 4rem); align-items: center; }
+
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.04em;
+      color: var(--muted); padding: 0.4rem 0.8rem; border: 1px solid var(--border);
+      border-radius: 999px; background: rgba(255,255,255,0.03);
+    }
+    .eyebrow .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--break); box-shadow: 0 0 10px var(--break); }
+
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem); line-height: 1.04; font-weight: 700;
+      letter-spacing: -0.03em; margin: 1.4rem 0 1.1rem; text-wrap: balance;
+    }
+    h1 .accent { color: var(--focus-2); }
+    .lede { color: var(--muted); font-size: clamp(1.02rem, 1.7vw, 1.18rem); max-width: 48ch; text-wrap: pretty; }
+
+    .hero-cta { display: flex; flex-wrap: wrap; gap: 0.85rem; margin-top: 2rem; }
+    .micro { margin-top: 1.1rem; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+
+    /* ---------- timer card ---------- */
+    .timer-card {
+      position: relative;
+      background: linear-gradient(160deg, var(--surface-2), var(--surface));
+      border: 1px solid var(--border); border-radius: 22px;
+      padding: clamp(1.5rem, 3vw, 2.25rem);
+      box-shadow: 0 40px 90px -40px rgba(0,0,0,0.8);
+    }
+    .timer-card::before {
+      content: ""; position: absolute; inset: 0; border-radius: 22px; padding: 1px;
+      background: linear-gradient(160deg, rgba(240,68,56,0.5), transparent 40%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+    }
+    .timer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .mode-toggle { display: inline-flex; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
+    .mode-toggle button {
+      font-family: var(--font-mono); font-size: 0.76rem; font-weight: 500; letter-spacing: 0.02em;
+      padding: 0.42rem 0.8rem; border: none; background: transparent; color: var(--muted);
+      border-radius: 8px; cursor: pointer; transition: all 0.2s var(--ease-out); min-height: 36px;
+    }
+    .mode-toggle button[aria-pressed="true"] { background: rgba(255,255,255,0.1); color: var(--fg); }
+    .session-tag { font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted); }
+
+    .clock {
+      font-family: var(--font-mono); font-weight: 800; font-variant-numeric: tabular-nums;
+      font-size: clamp(3.6rem, 12vw, 5.6rem); line-height: 1; text-align: center;
+      letter-spacing: -0.02em; margin: 0.5rem 0 0.25rem; color: var(--fg);
+    }
+    .clock.is-break { color: var(--break); }
+    .clock.is-focus { color: var(--focus-2); }
+    .clock-label { text-align: center; font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); margin-bottom: 1.4rem; }
+
+    .progress-track { height: 6px; border-radius: 99px; background: rgba(255,255,255,0.08); overflow: hidden; margin-bottom: 1.4rem; }
+    .progress-fill { height: 100%; width: 0%; border-radius: 99px; background: var(--focus); transition: width 0.4s linear, background 0.3s var(--ease-out); }
+    .progress-fill.is-break { background: var(--break); }
+
+    .timer-controls { display: flex; gap: 0.7rem; }
+    .timer-controls .btn { flex: 1; }
+
+    /* ---------- benefits ---------- */
+    .benefits { position: relative; z-index: var(--z-base); padding: clamp(2.5rem, 6vw, 4.5rem) 0; }
+    .benefit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }
+    .benefit { padding: 1.6rem; border: 1px solid var(--border); border-radius: 16px; background: rgba(255,255,255,0.02); }
+    .benefit .ic { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 11px; background: rgba(240,68,56,0.12); color: var(--focus-2); margin-bottom: 1rem; }
+    .benefit:nth-child(2) .ic { background: rgba(16,185,129,0.12); color: var(--break); }
+    .benefit:nth-child(3) .ic { background: rgba(255,255,255,0.07); color: var(--fg); }
+    .benefit h3 { font-size: 1.12rem; font-weight: 600; margin-bottom: 0.45rem; letter-spacing: -0.01em; }
+    .benefit p { color: var(--muted); font-size: 0.96rem; }
+
+    /* ---------- social proof ---------- */
+    .proof { position: relative; z-index: var(--z-base); padding: clamp(2.5rem, 6vw, 4.5rem) 0; }
+    .proof-head { text-align: center; margin-bottom: 2.5rem; }
+    .stat { font-family: var(--font-mono); font-weight: 800; font-size: clamp(2.4rem, 7vw, 3.4rem); color: var(--fg); letter-spacing: -0.02em; }
+    .stat span { color: var(--focus-2); }
+    .proof-head p { color: var(--muted); margin-top: 0.4rem; }
+    .quotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+    .quote { padding: 1.5rem; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+    .quote blockquote { font-size: 1rem; line-height: 1.6; }
+    .quote .who { display: flex; align-items: center; gap: 0.7rem; margin-top: 1.1rem; }
+    .quote .avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 0.82rem; background: var(--surface-2); color: var(--focus-2); border: 1px solid var(--border); }
+    .quote .who .meta { font-size: 0.84rem; }
+    .quote .who .meta b { display: block; font-weight: 600; }
+    .quote .who .meta span { color: var(--muted); font-family: var(--font-mono); font-size: 0.78rem; }
+
+    /* ---------- final CTA ---------- */
+    .final { position: relative; z-index: var(--z-base); padding: clamp(3rem, 8vw, 6rem) 0; text-align: center; }
+    .final h2 { font-size: clamp(1.9rem, 5vw, 3rem); font-weight: 700; letter-spacing: -0.03em; text-wrap: balance; }
+    .final p { color: var(--muted); max-width: 46ch; margin: 1rem auto 2rem; text-wrap: pretty; }
+
+    /* ---------- footer ---------- */
+    footer { position: relative; z-index: var(--z-base); border-top: 1px solid var(--border); padding: 2rem 0; }
+    footer .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+    footer .muted { color: var(--muted); font-family: var(--font-mono); font-size: 0.82rem; }
+    footer .links { display: flex; gap: 1.5rem; }
+    footer .links a { color: var(--muted); font-size: 0.9rem; transition: color 0.2s var(--ease-out); }
+    footer .links a:hover { color: var(--fg); }
+
+    /* ---------- responsive ---------- */
+    @media (max-width: 860px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .nav-links .txt { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .blob-a, .blob-b { animation: none; }
+      .btn, .progress-fill { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="blob blob-a"></div>
+    <div class="blob blob-b"></div>
+  </div>
+
+  <header>
+    <nav class="wrap" aria-label="Primary">
+      <a class="brand" href="#top"><span class="dot"></span> Tempo</a>
+      <div class="nav-links">
+        <a class="txt" href="#features">Features</a>
+        <a class="txt" href="#proof">Teams</a>
+        <a class="txt" href="#start">Pricing</a>
+        <a class="btn btn-primary" href="#start">Start free</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <span class="eyebrow"><span class="pulse"></span> for developers who ship in flow</span>
+          <h1>Protect the hours that <span class="accent">actually move the code.</span></h1>
+          <p class="lede">Tempo blocks the noise, runs your focus and break cycles, and tracks the deep-work streaks that turn into shipped features. No dashboards to babysit. Just the work.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="#start">Start a focus block</a>
+            <a class="btn btn-ghost" href="#features">See how it works</a>
+          </div>
+          <p class="micro">$ brew install tempo &nbsp;·&nbsp; macOS, Linux, Windows</p>
+        </div>
+
+        <!-- Live interactive timer (the product, on the page) -->
+        <div class="timer-card" role="group" aria-label="Focus timer demo">
+          <div class="timer-head">
+            <div class="mode-toggle" role="group" aria-label="Timer mode">
+              <button id="mode-focus" aria-pressed="true" data-mode="focus" data-mins="25">Focus 25</button>
+              <button id="mode-break" aria-pressed="false" data-mode="break" data-mins="5">Break 5</button>
+            </div>
+            <span class="session-tag" id="session-tag">session 01</span>
+          </div>
+
+          <div class="clock is-focus" id="clock" aria-live="off">25:00</div>
+          <p class="clock-label" id="clock-label">deep work · notifications muted</p>
+
+          <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+
+          <div class="timer-controls">
+            <button class="btn btn-primary" id="toggle">Start</button>
+            <button class="btn btn-ghost" id="reset" aria-label="Reset timer">Reset</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BENEFITS (3 max, per pattern) -->
+    <section class="benefits" id="features">
+      <div class="wrap benefit-grid">
+        <article class="benefit">
+          <div class="ic" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>
+          </div>
+          <h3>Cycles that respect your brain</h3>
+          <p>Focus and break intervals tuned to how engineers actually work. Tempo learns your rhythm instead of forcing a rigid 25/5.</p>
+        </article>
+        <article class="benefit">
+          <div class="ic" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/><line x1="3" y1="3" x2="21" y2="21"/></svg>
+          </div>
+          <h3>Auto-silenced distractions</h3>
+          <p>Slack, mail, and notification banners go quiet the moment a block starts, then come back on the break. Nothing slips through.</p>
+        </article>
+        <article class="benefit">
+          <div class="ic" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          </div>
+          <h3>Streaks you can see</h3>
+          <p>Every completed block compounds into a streak and a weekly deep-work report, synced to the repos and branches you touched.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- SOCIAL PROOF (before final CTA, per landing pattern) -->
+    <section class="proof" id="proof">
+      <div class="wrap">
+        <div class="proof-head">
+          <div class="stat"><span>2.1M</span> focus blocks shipped</div>
+          <p>by engineers at startups and platform teams who guard their mornings.</p>
+        </div>
+        <div class="quotes">
+          <figure class="quote">
+            <blockquote>"I stopped negotiating with my own attention. A block starts, the noise dies, and I'm three commits deep before I look up."</blockquote>
+            <figcaption class="who"><span class="avatar">RK</span><span class="meta"><b>Ravi Krishnan</b><span>Staff Engineer · Render</span></span></figcaption>
+          </figure>
+          <figure class="quote">
+            <blockquote>"Our team adopted Tempo for no-meeting mornings. Cycle time on PRs dropped and standups got shorter. It just works."</blockquote>
+            <figcaption class="who"><span class="avatar">ML</span><span class="meta"><b>Mara Lindqvist</b><span>Eng Manager · Northwind</span></span></figcaption>
+          </figure>
+          <figure class="quote">
+            <blockquote>"The weekly report tied to my branches is the first productivity metric I've ever actually trusted. No vanity numbers."</blockquote>
+            <figcaption class="who"><span class="avatar">DA</span><span class="meta"><b>Devon Asare</b><span>Indie dev · ships nightly</span></span></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="final" id="start">
+      <div class="wrap">
+        <h2>Your next deep-work block starts now.</h2>
+        <p>Free for solo developers, forever. Bring your team when you're ready.</p>
+        <a class="btn btn-primary" href="#top" style="padding:0.9rem 1.8rem; font-size:1.02rem;">Start focusing free</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap row">
+      <a class="brand" href="#top"><span class="dot"></span> Tempo</a>
+      <div class="links">
+        <a href="#features">Features</a>
+        <a href="#proof">Teams</a>
+        <a href="#start">Pricing</a>
+        <a href="#top">Docs</a>
+      </div>
+      <span class="muted">© 2026 Tempo Labs</span>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const clock    = document.getElementById('clock');
+      const label    = document.getElementById('clock-label');
+      const progress = document.getElementById('progress');
+      const toggle   = document.getElementById('toggle');
+      const reset    = document.getElementById('reset');
+      const tag      = document.getElementById('session-tag');
+      const modeBtns = [document.getElementById('mode-focus'), document.getElementById('mode-break')];
+
+      let mode = 'focus';
+      let total = 25 * 60;          // seconds
+      let remaining = total;
+      let ticking = null;
+      let sessionCount = 1;
+
+      const fmt = (s) => {
+        const m = Math.floor(s / 60).toString().padStart(2, '0');
+        const sec = (s % 60).toString().padStart(2, '0');
+        return `${m}:${sec}`;
+      };
+
+      function render() {
+        clock.textContent = fmt(remaining);
+        const pct = total ? ((total - remaining) / total) * 100 : 0;
+        progress.style.width = pct + '%';
+        const isBreak = mode === 'break';
+        clock.classList.toggle('is-break', isBreak);
+        clock.classList.toggle('is-focus', !isBreak);
+        progress.classList.toggle('is-break', isBreak);
+        label.textContent = isBreak ? 'break · step away from the keyboard' : 'deep work · notifications muted';
+        tag.textContent = 'session ' + sessionCount.toString().padStart(2, '0');
+      }
+
+      function setMode(next, mins) {
+        mode = next;
+        total = mins * 60;
+        remaining = total;
+        stop();
+        modeBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === next)));
+        render();
+      }
+
+      function stop() {
+        clearInterval(ticking);
+        ticking = null;
+        toggle.textContent = 'Start';
+        clock.setAttribute('aria-live', 'off');
+      }
+
+      function start() {
+        if (ticking) return;
+        toggle.textContent = 'Pause';
+        clock.setAttribute('aria-live', 'polite');
+        ticking = setInterval(() => {
+          remaining = Math.max(0, remaining - 1);
+          render();
+          if (remaining === 0) {
+            stop();
+            if (mode === 'focus') sessionCount++;
+            label.textContent = mode === 'focus' ? 'block complete · take your break' : 'break over · back to it';
+          }
+        }, 1000);
+      }
+
+      toggle.addEventListener('click', () => (ticking ? stop() : start()));
+      reset.addEventListener('click', () => { remaining = total; stop(); render(); });
+      modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode, parseInt(b.dataset.mins, 10))));
+
+      render();
+    })();
+  </script>
+</body>
+</html>
