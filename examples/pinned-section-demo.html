@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GSAP ScrollTrigger — Pinned Section Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:      #08080b;
+      --surface: #111119;
+      --ink:     #f5f5fa;
+      --muted:   #aeaec8;          /* ~6:1 on --bg, passes body contrast */
+      --line:    rgba(255,255,255,0.09);
+
+      --emerald: #34d399;
+      --indigo:  #818cf8;
+      --pink:    #f472b6;
+
+      --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+
+      /* exponential ease-out for non-scrubbed UI motion */
+      --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+
+      --z-progress: 20;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* ---- Spacer sections (something to scroll into / out of) ---- */
+    .intro, .outro {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      text-align: center;
+      padding: 2rem;
+      position: relative;
+    }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--emerald);
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: clamp(2.75rem, 8vw, 5.5rem);
+      line-height: 0.95;
+      letter-spacing: -0.025em;
+      text-wrap: balance;
+    }
+    .intro h1 em, .outro h1 em {
+      font-style: italic;
+      color: var(--muted);
+    }
+
+    .lede {
+      color: var(--muted);
+      font-size: clamp(1rem, 2.2vw, 1.2rem);
+      line-height: 1.6;
+      max-width: 46ch;
+      text-wrap: pretty;
+    }
+
+    /* Animated scroll cue */
+    .scroll-cue {
+      position: absolute;
+      bottom: 2.25rem;
+      left: 50%;
+      translate: -50% 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.55rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .scroll-cue .rail {
+      width: 1.5px;
+      height: 42px;
+      background: var(--line);
+      overflow: hidden;
+      border-radius: 2px;
+    }
+    .scroll-cue .rail::after {
+      content: "";
+      display: block;
+      width: 100%;
+      height: 40%;
+      background: linear-gradient(var(--emerald), transparent);
+      animation: cue 1.9s var(--ease-out-quint) infinite;
+    }
+    @keyframes cue {
+      0%   { transform: translateY(-100%); }
+      100% { transform: translateY(250%); }
+    }
+
+    /* ---- The pinned section ---- */
+    .pin-section {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      background: var(--bg);
+    }
+
+    /* Aurora glows — parallaxed by scroll */
+    .glow {
+      position: absolute;
+      width: 60vmax;
+      height: 60vmax;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.5;
+      pointer-events: none;
+      will-change: transform;
+    }
+    .glow-a { background: radial-gradient(circle, rgba(52,211,153,0.18), transparent 60%);  top: -20%; left: -10%; }
+    .glow-b { background: radial-gradient(circle, rgba(129,140,248,0.20), transparent 60%); bottom: -25%; right: -12%; }
+
+    .stage {
+      position: relative;
+      width: min(90vw, 760px);
+      height: min(62vh, 460px);
+    }
+
+    .panel {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(1.75rem, 4vw, 2.75rem);
+      border-radius: 24px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.04) inset,
+        0 40px 90px -30px rgba(0,0,0,0.7);
+      will-change: transform, opacity;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .panel-num {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+    .panel-tag {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      padding: 0.35em 0.7em;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+    }
+
+    .panel-body h2 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: clamp(2rem, 5.5vw, 3.4rem);
+      line-height: 1.0;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.6rem;
+    }
+    .panel-body p {
+      color: var(--muted);
+      font-size: clamp(0.95rem, 1.6vw, 1.08rem);
+      line-height: 1.55;
+      max-width: 44ch;
+      text-wrap: pretty;
+    }
+
+    /* per-panel accent — drives tag color + a hairline top accent */
+    .panel-1 { --accent: var(--emerald); }
+    .panel-2 { --accent: var(--indigo); }
+    .panel-3 { --accent: var(--pink); }
+    .panel-tag { color: var(--accent); }
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 3px;
+      border-radius: 24px 24px 0 0;
+      background: linear-gradient(90deg, var(--accent), transparent 70%);
+    }
+    .panel-body h2 .mark { color: var(--accent); }
+
+    /* ---- Progress rail (pinned at top of viewport via the section) ---- */
+    .progress-wrap {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--line);
+      z-index: var(--z-progress);
+    }
+    .progress {
+      height: 100%;
+      width: 0%;
+      transform-origin: left center;
+      background: linear-gradient(90deg, var(--emerald), var(--indigo), var(--pink));
+      box-shadow: 0 0 14px rgba(129,140,248,0.6);
+    }
+    .counter {
+      position: absolute;
+      bottom: 1.75rem; left: 50%;
+      translate: -50% 0;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      font-size: 0.82rem;
+      letter-spacing: 0.1em;
+    }
+    .counter .pct { color: var(--ink); }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .scroll-cue .rail::after { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <section class="intro">
+    <span class="eyebrow">GSAP · ScrollTrigger</span>
+    <h1>Pin it.<br /><em>Scrub it.</em></h1>
+    <p class="lede">The next section locks to the viewport while its panels move in step with your scroll, then releases when the range runs out.</p>
+    <div class="scroll-cue"><span>Scroll</span><div class="rail"></div></div>
+  </section>
+
+  <section class="pin-section">
+    <div class="progress-wrap"><div class="progress"></div></div>
+    <div class="glow glow-a"></div>
+    <div class="glow glow-b"></div>
+
+    <div class="stage">
+      <article class="panel panel-1">
+        <div class="panel-head">
+          <span class="panel-num">01 / 03</span>
+          <span class="panel-tag">Pin</span>
+        </div>
+        <div class="panel-body">
+          <h2>The section <span class="mark">holds</span>.</h2>
+          <p>Scroll keeps moving, but the panel stays fixed to the viewport. ScrollTrigger converts that travel into animation progress.</p>
+        </div>
+      </article>
+
+      <article class="panel panel-2">
+        <div class="panel-head">
+          <span class="panel-num">02 / 03</span>
+          <span class="panel-tag">Scrub</span>
+        </div>
+        <div class="panel-body">
+          <h2>Motion <span class="mark">follows</span> the wheel.</h2>
+          <p>With scrub, the timeline scrubs forward and back with the scrollbar. A little smoothing lets it ease toward your position.</p>
+        </div>
+      </article>
+
+      <article class="panel panel-3">
+        <div class="panel-head">
+          <span class="panel-num">03 / 03</span>
+          <span class="panel-tag">Release</span>
+        </div>
+        <div class="panel-body">
+          <h2>And it <span class="mark">lets go</span>.</h2>
+          <p>Once the scroll range finishes, the pin unsticks and normal flow resumes. The page carries on below.</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="counter">progress <span class="pct">0</span>%</div>
+  </section>
+
+  <section class="outro">
+    <span class="eyebrow">Released</span>
+    <h1>Back to <em>normal flow.</em></h1>
+    <p class="lede">The pin handed scroll control back the moment the range completed. Resize the window or reload to watch it recalculate.</p>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+  <script>
+    gsap.registerPlugin(ScrollTrigger);
+
+    const setPct = (p) => {
+      const pct = Math.round(p * 100);
+      document.querySelector(".pct").textContent = pct;
+      gsap.set(".progress", { scaleX: p });
+    };
+
+    // matchMedia gives us a clean reduced-motion branch with automatic revert.
+    const mm = gsap.matchMedia();
+
+    // --- Full motion ---
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      // Start stacked: only panel 1 visible.
+      gsap.set(".panel-2, .panel-3", { autoAlpha: 0, yPercent: 18, scale: 0.94 });
+
+      // One timeline driven by scroll, with the section pinned.
+      // ScrollTrigger lives on the TIMELINE, not the child tweens.
+      const tl = gsap.timeline({
+        defaults: { ease: "none" },          // linear pairs best with scrub
+        scrollTrigger: {
+          trigger: ".pin-section",
+          start: "top top",
+          end: "+=2600",                     // pin for 2600px of scroll
+          pin: true,
+          scrub: 1,                          // 1s smoothing to "catch up"
+          // markers: true,                  // uncomment to debug start/end
+          onUpdate: (self) => setPct(self.progress),
+        },
+      });
+
+      tl // Panel 1 -> 2
+        .to(".panel-1", { autoAlpha: 0, yPercent: -18, scale: 0.94, duration: 1 })
+        .to(".panel-2", { autoAlpha: 1, yPercent: 0, scale: 1, duration: 1 }, "<")
+        // Panel 2 -> 3
+        .to(".panel-2", { autoAlpha: 0, yPercent: -18, scale: 0.94, duration: 1 }, "+=0.5")
+        .to(".panel-3", { autoAlpha: 1, yPercent: 0, scale: 1, duration: 1 }, "<")
+        // Final settle
+        .to(".panel-3", { rotate: 1.5, duration: 0.5 });
+
+      // Subtle background parallax tied to the same scroll range.
+      gsap.to(".glow-a", {
+        yPercent: -25, ease: "none",
+        scrollTrigger: { trigger: ".pin-section", start: "top top", end: "+=2600", scrub: true },
+      });
+      gsap.to(".glow-b", {
+        yPercent: 25, ease: "none",
+        scrollTrigger: { trigger: ".pin-section", start: "top top", end: "+=2600", scrub: true },
+      });
+    });
+
+    // --- Reduced motion: no pin, no scrub. Show all three, stacked and readable. ---
+    mm.add("(prefers-reduced-motion: reduce)", () => {
+      const stage = document.querySelector(".stage");
+      const panels = gsap.utils.toArray(".panel");
+      // Lay panels out in normal flow so every step is reachable without motion.
+      gsap.set(".panel", { position: "relative", inset: "auto", autoAlpha: 1, marginBottom: "1.25rem" });
+      gsap.set(stage, { height: "auto" });
+      setPct(1);
+    });
+  </script>
+</body>
+</html>
