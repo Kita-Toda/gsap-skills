@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aperture — The personal CRM for people who matter</title>
+  <meta name="description" content="Aperture is a quiet, premium personal CRM for founders and investors. Nurture the relationships that compound." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Premium pairing: Fraunces (variable high-contrast serif) + Plus Jakarta Sans. No banned fonts. -->
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      /* Editorial Luxury vibe */
+      --paper:     #fdfbf7;
+      --paper-2:   #f6f1e9;
+      --ink:       #1b1813;          /* espresso near-black */
+      --ink-soft:  #5b5248;          /* ~7:1 on paper — body */
+      --ink-mute:  #8a8073;
+      --sage:      #4f6152;          /* muted deep sage accent */
+      --sage-soft: #e7ece5;
+      --clay:      #a8674b;          /* secondary warm accent */
+      --shell:     rgba(27,24,19,0.035);
+      --hairline:  rgba(27,24,19,0.09);
+      --hairline-2:rgba(27,24,19,0.06);
+      --card:      #ffffff;
+
+      --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+      --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+      --spring: cubic-bezier(0.32, 0.72, 0, 1);
+      --ease:   cubic-bezier(0.16, 1, 0.3, 1);
+
+      --z-nav: 60; --z-overlay: 70; --z-grain: 80;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    ::selection { background: var(--sage); color: var(--paper); }
+    :focus-visible { outline: 2px solid var(--sage); outline-offset: 4px; border-radius: 10px; }
+
+    /* ---- film grain (fixed, pointer-events none, per perf guardrails) ---- */
+    .grain {
+      position: fixed; inset: 0; z-index: var(--z-grain); pointer-events: none; opacity: 0.04;
+      mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .wrap { width: min(92vw, 1180px); margin-inline: auto; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.22em; font-weight: 600;
+      padding: 0.45rem 0.85rem; border-radius: 999px;
+      background: var(--shell); border: 1px solid var(--hairline); color: var(--ink-soft);
+    }
+    .eyebrow .tick { width: 5px; height: 5px; border-radius: 50%; background: var(--sage); }
+
+    /* ---- fluid-island nav ---- */
+    .nav-outer { position: fixed; top: 0; left: 0; right: 0; z-index: var(--z-nav); display: flex; justify-content: center; padding-top: 1.5rem; }
+    .nav {
+      display: flex; align-items: center; gap: 2rem; width: max-content;
+      padding: 0.6rem 0.6rem 0.6rem 1.4rem; border-radius: 999px;
+      background: rgba(253,251,247,0.72); backdrop-filter: blur(18px) saturate(1.4);
+      border: 1px solid var(--hairline); box-shadow: 0 16px 40px -24px rgba(27,24,19,0.35);
+    }
+    .nav .logo { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.55rem; }
+    .nav .logo .ap { width: 18px; height: 18px; }
+    .nav-menu { display: flex; gap: 1.6rem; }
+    .nav-menu a { font-size: 0.9rem; color: var(--ink-soft); transition: color 0.4s var(--ease); }
+    .nav-menu a:hover { color: var(--ink); }
+
+    /* button-in-button pill */
+    .pill {
+      display: inline-flex; align-items: center; gap: 0.7rem;
+      font-family: var(--font-sans); font-weight: 600; font-size: 0.92rem; cursor: pointer;
+      padding: 0.6rem 0.6rem 0.6rem 1.25rem; border-radius: 999px; border: none;
+      background: var(--ink); color: var(--paper);
+      transition: transform 0.5s var(--spring), background 0.4s var(--ease);
+    }
+    .pill .ico { width: 30px; height: 30px; border-radius: 999px; background: rgba(253,251,247,0.16); display: grid; place-items: center; transition: transform 0.5s var(--spring), background 0.4s var(--ease); }
+    .pill:hover { background: var(--sage); }
+    .pill:hover .ico { transform: translate(3px, -2px) scale(1.06); background: rgba(253,251,247,0.26); }
+    .pill:active { transform: scale(0.97); }
+    .pill.light { background: var(--paper); color: var(--ink); border: 1px solid var(--hairline); }
+    .pill.light .ico { background: var(--shell); }
+    .pill.light:hover { background: var(--paper-2); }
+    .pill .ico svg { stroke: currentColor; }
+
+    .nav-burger { display: none; }
+
+    /* ---- hero: editorial split ---- */
+    .hero { min-height: 100dvh; display: flex; align-items: center; padding: 9rem 0 5rem; position: relative; }
+    .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 4rem; align-items: center; width: 100%; }
+
+    h1.display {
+      font-family: var(--font-display); font-weight: 500; font-size: clamp(3rem, 7vw, 5.6rem);
+      line-height: 0.98; letter-spacing: -0.035em; margin: 1.6rem 0 1.5rem; text-wrap: balance;
+    }
+    h1.display em { font-style: italic; font-weight: 400; color: var(--sage); }
+    .hero-sub { font-size: clamp(1.05rem, 1.7vw, 1.22rem); color: var(--ink-soft); max-width: 44ch; text-wrap: pretty; }
+    .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-top: 2.4rem; }
+    .hero-meta { margin-top: 2rem; display: flex; align-items: center; gap: 0.8rem; color: var(--ink-mute); font-size: 0.85rem; }
+    .hero-meta .dots { display: flex; }
+    .hero-meta .dots span { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--paper); margin-left: -8px; background: var(--sage-soft); display: grid; place-items: center; font-size: 0.62rem; font-weight: 600; color: var(--sage); }
+
+    /* staggered network cards (double-bezel) */
+    .stack { position: relative; height: 460px; }
+    .shell {
+      position: absolute; padding: 7px; border-radius: 1.75rem;
+      background: var(--shell); border: 1px solid var(--hairline);
+      box-shadow: 0 30px 60px -34px rgba(27,24,19,0.4);
+      transition: transform 0.7s var(--spring), box-shadow 0.7s var(--spring);
+      will-change: transform;
+    }
+    .core {
+      background: var(--card); border-radius: calc(1.75rem - 7px);
+      box-shadow: inset 0 1px 1px rgba(255,255,255,0.6);
+      padding: 1.4rem 1.5rem; width: 320px;
+    }
+    .card-1 { top: 10px; left: 8%; transform: rotate(-4deg); z-index: 1; }
+    .card-2 { top: 150px; right: 2%; transform: rotate(3deg); z-index: 3; }
+    .card-3 { top: 300px; left: 14%; transform: rotate(-2deg); z-index: 2; }
+    .stack:hover .card-1 { transform: rotate(-5deg) translate(-6px,-6px); }
+    .stack:hover .card-2 { transform: rotate(4deg) translate(6px,-4px); }
+    .stack:hover .card-3 { transform: rotate(-1deg) translate(-2px,6px); }
+
+    .person { display: flex; align-items: center; gap: 0.9rem; }
+    .avatar { width: 46px; height: 46px; border-radius: 999px; display: grid; place-items: center; font-family: var(--font-display); font-weight: 600; font-size: 1rem; }
+    .a1 { background: var(--sage-soft); color: var(--sage); }
+    .a2 { background: #f1e6df; color: var(--clay); }
+    .a3 { background: #e9e6df; color: var(--ink-soft); }
+    .person .pmeta b { font-weight: 600; font-size: 0.98rem; display: block; letter-spacing: -0.01em; }
+    .person .pmeta span { font-size: 0.8rem; color: var(--ink-mute); }
+    .card-note { margin-top: 1rem; padding-top: 0.95rem; border-top: 1px solid var(--hairline-2); font-size: 0.84rem; color: var(--ink-soft); display: flex; align-items: center; gap: 0.5rem; }
+    .card-note .dt { width: 6px; height: 6px; border-radius: 50%; background: var(--clay); flex: none; }
+    .card-2 .card-note .dt { background: var(--sage); }
+
+    /* ---- trust strip ---- */
+    .trust { padding: 2.5rem 0; border-top: 1px solid var(--hairline-2); border-bottom: 1px solid var(--hairline-2); }
+    .trust .wrap { display: flex; align-items: center; justify-content: space-between; gap: 2rem; flex-wrap: wrap; }
+    .trust p { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-mute); }
+    .trust .names { display: flex; gap: 2.5rem; flex-wrap: wrap; font-family: var(--font-display); font-size: 1.15rem; color: var(--ink-soft); font-weight: 500; }
+
+    /* ---- features: asymmetrical bento ---- */
+    section.features { padding: clamp(5rem, 12vw, 9rem) 0; }
+    .sec-head { max-width: 40ch; margin-bottom: 3.5rem; }
+    .sec-head h2 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1.04; letter-spacing: -0.03em; margin-top: 1.2rem; text-wrap: balance; }
+    .bento { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; }
+    .b-shell { padding: 7px; border-radius: 1.9rem; background: var(--shell); border: 1px solid var(--hairline); }
+    .b-core { height: 100%; background: var(--card); border-radius: calc(1.9rem - 7px); box-shadow: inset 0 1px 1px rgba(255,255,255,0.6); padding: clamp(1.6rem, 2.6vw, 2.4rem); display: flex; flex-direction: column; }
+    .b-wide  { grid-column: span 7; }
+    .b-tall  { grid-column: span 5; }
+    .b-third { grid-column: span 4; }
+    .feat-ico { width: 44px; height: 44px; border-radius: 13px; background: var(--sage-soft); color: var(--sage); display: grid; place-items: center; margin-bottom: 1.4rem; }
+    .b-core h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.5rem; letter-spacing: -0.015em; margin-bottom: 0.55rem; }
+    .b-core p { color: var(--ink-soft); font-size: 0.98rem; max-width: 42ch; }
+    .b-core .grow { flex: 1; }
+    /* mini timeline visual inside wide card */
+    .timeline { margin-top: 2rem; display: flex; flex-direction: column; gap: 0.85rem; }
+    .tl-row { display: flex; align-items: center; gap: 0.85rem; font-size: 0.9rem; }
+    .tl-row .when { font-family: var(--font-display); font-style: italic; color: var(--ink-mute); width: 5.5rem; flex: none; font-size: 0.92rem; }
+    .tl-row .what { color: var(--ink-soft); }
+    .tl-row .node { width: 8px; height: 8px; border-radius: 50%; background: var(--sage); flex: none; }
+    .tl-row:nth-child(2) .node { background: var(--clay); }
+    .tl-row:nth-child(3) .node { background: var(--ink-mute); }
+
+    /* ---- quote ---- */
+    section.quote-sec { padding: clamp(4rem, 10vw, 8rem) 0; }
+    .quote-shell { padding: 8px; border-radius: 2.2rem; background: var(--shell); border: 1px solid var(--hairline); }
+    .quote-core { background: var(--sage); color: var(--paper); border-radius: calc(2.2rem - 8px); padding: clamp(2.5rem, 6vw, 5rem); text-align: center; }
+    .quote-core blockquote { font-family: var(--font-display); font-weight: 400; font-size: clamp(1.6rem, 4vw, 2.8rem); line-height: 1.18; letter-spacing: -0.02em; max-width: 22ch; margin: 0 auto; text-wrap: balance; }
+    .quote-core .by { margin-top: 2rem; font-size: 0.9rem; opacity: 0.85; letter-spacing: 0.04em; }
+
+    /* ---- final cta ---- */
+    section.final { padding: clamp(5rem, 12vw, 9rem) 0; text-align: center; }
+    .final h2 { font-family: var(--font-display); font-weight: 500; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1; letter-spacing: -0.035em; text-wrap: balance; }
+    .final p { color: var(--ink-soft); max-width: 42ch; margin: 1.3rem auto 2.4rem; font-size: 1.08rem; }
+
+    footer { padding: 3rem 0 4rem; border-top: 1px solid var(--hairline-2); }
+    footer .wrap { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.2rem; }
+    footer .logo { font-family: var(--font-display); font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
+    footer .fl { display: flex; gap: 1.6rem; }
+    footer .fl a { font-size: 0.88rem; color: var(--ink-soft); transition: color 0.3s var(--ease); }
+    footer .fl a:hover { color: var(--ink); }
+    footer .cr { color: var(--ink-mute); font-size: 0.82rem; }
+
+    /* ---- reveal ---- */
+    .reveal { opacity: 0; transform: translateY(28px); filter: blur(6px); transition: opacity 0.9s var(--ease), transform 0.9s var(--ease), filter 0.9s var(--ease); }
+    .reveal.in { opacity: 1; transform: none; filter: blur(0); }
+
+    /* ---- mobile menu overlay ---- */
+    .overlay { position: fixed; inset: 0; z-index: var(--z-overlay); background: rgba(253,251,247,0.85); backdrop-filter: blur(28px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem; opacity: 0; pointer-events: none; transition: opacity 0.5s var(--ease); }
+    .overlay.open { opacity: 1; pointer-events: auto; }
+    .overlay a { font-family: var(--font-display); font-size: 2rem; font-weight: 500; letter-spacing: -0.02em; transform: translateY(40px); opacity: 0; transition: transform 0.7s var(--spring), opacity 0.7s var(--ease); }
+    .overlay.open a { transform: none; opacity: 1; }
+    .overlay.open a:nth-child(1) { transition-delay: 0.08s; }
+    .overlay.open a:nth-child(2) { transition-delay: 0.14s; }
+    .overlay.open a:nth-child(3) { transition-delay: 0.2s; }
+    .overlay.open a:nth-child(4) { transition-delay: 0.26s; }
+
+    /* ---- responsive ---- */
+    @media (max-width: 920px) {
+      .nav-menu, .nav .pill { display: none; }
+      .nav-burger { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 999px; background: var(--shell); border: 1px solid var(--hairline); cursor: pointer; position: relative; }
+      .nav-burger span { position: absolute; width: 16px; height: 1.5px; background: var(--ink); transition: transform 0.5s var(--spring), opacity 0.3s var(--ease); }
+      .nav-burger span:nth-child(1) { transform: translateY(-4px); }
+      .nav-burger span:nth-child(2) { transform: translateY(4px); }
+      .nav-burger.x span:nth-child(1) { transform: rotate(45deg); }
+      .nav-burger.x span:nth-child(2) { transform: rotate(-45deg); }
+      .hero-grid { grid-template-columns: 1fr; gap: 3rem; }
+      .stack { height: 430px; max-width: 360px; margin: 0 auto; }
+      .core, .stack .shell { width: min(86vw, 320px); }
+      .bento { gap: 1rem; }
+      .b-wide, .b-tall, .b-third { grid-column: span 12; }
+    }
+    @media (max-width: 560px) {
+      .hero { padding-top: 7.5rem; }
+      .card-1 { left: 0; } .card-2 { right: 0; } .card-3 { left: 6%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveal { opacity: 1; transform: none; filter: none; transition: none; }
+      .stack .shell, .stack:hover .shell, .pill, .pill .ico { transition: none; }
+      * { animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- fluid-island nav -->
+  <div class="nav-outer">
+    <nav class="nav" aria-label="Primary">
+      <a class="logo" href="#top">
+        <svg class="ap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.4 3.7M12 12 5.6 8.3M12 12l6.4-3.7"/></svg>
+        Aperture
+      </a>
+      <div class="nav-menu">
+        <a href="#features">Product</a>
+        <a href="#quote">Philosophy</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <a class="pill" href="#pricing">Request access
+        <span class="ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
+      </a>
+      <button class="nav-burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span></button>
+    </nav>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <a href="#features">Product</a>
+    <a href="#quote">Philosophy</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#pricing">Request access</a>
+  </div>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <span class="eyebrow reveal"><span class="tick"></span> Personal CRM · by invitation</span>
+          <h1 class="display reveal">Keep the<br /><em>right people</em> close.</h1>
+          <p class="hero-sub reveal">Aperture is a quiet system for the relationships that compound. It remembers the last conversation, surfaces who's gone cold, and tells you when a warm intro is worth making, so you never let a good connection drift.</p>
+          <div class="hero-actions reveal">
+            <a class="pill" href="#pricing">Request access
+              <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
+            </a>
+            <a class="pill light" href="#features">See how it thinks
+              <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+            </a>
+          </div>
+          <div class="hero-meta reveal">
+            <span class="dots"><span>RK</span><span>ML</span><span>DA</span></span>
+            Trusted by 2,400 founders &amp; operators
+          </div>
+        </div>
+
+        <!-- staggered double-bezel network cards -->
+        <div class="stack reveal" aria-hidden="true">
+          <div class="shell card-1"><div class="core">
+            <div class="person"><div class="avatar a1">NS</div><div class="pmeta"><b>Naomi Søren</b><span>GP · Lumen Capital</span></div></div>
+            <div class="card-note"><span class="dt"></span> Cooling — last spoke 38 days ago</div>
+          </div></div>
+          <div class="shell card-2"><div class="core">
+            <div class="person"><div class="avatar a2">JP</div><div class="pmeta"><b>Julian Park</b><span>Founder · Cadence</span></div></div>
+            <div class="card-note"><span class="dt"></span> Reply due · he shipped Series A</div>
+          </div></div>
+          <div class="shell card-3"><div class="core">
+            <div class="person"><div class="avatar a3">EV</div><div class="pmeta"><b>Elise Vance</b><span>Angel · ex-Stripe</span></div></div>
+            <div class="card-note"><span class="dt"></span> Warm intro available → 2 founders</div>
+          </div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRUST -->
+    <div class="trust reveal">
+      <div class="wrap">
+        <p>The network behind</p>
+        <div class="names"><span>Lumen</span><span>Cadence</span><span>Northwind</span><span>Atelier</span><span>Foundry</span></div>
+      </div>
+    </div>
+
+    <!-- FEATURES bento -->
+    <section class="features" id="features">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <span class="eyebrow"><span class="tick"></span> How it thinks</span>
+          <h2>Less a database. More a sense of who matters this week.</h2>
+        </div>
+        <div class="bento">
+          <div class="b-shell b-wide reveal">
+            <div class="b-core">
+              <div class="feat-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+              <h3>A memory for every relationship</h3>
+              <p>Aperture quietly keeps the thread, the last note, the promise you made, the context you'd otherwise forget, so the next message picks up exactly where you left off.</p>
+              <div class="grow"></div>
+              <div class="timeline">
+                <div class="tl-row"><span class="node"></span><span class="when">Apr 2</span><span class="what">Promised an intro to a design hire</span></div>
+                <div class="tl-row"><span class="node"></span><span class="when">Mar 18</span><span class="what">Coffee · talked through their pricing model</span></div>
+                <div class="tl-row"><span class="node"></span><span class="when">Feb 9</span><span class="what">Congrats on the seed round</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="b-shell b-tall reveal">
+            <div class="b-core">
+              <div class="feat-ico" style="background:#f1e6df;color:var(--clay)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0z"/><path d="M12 7v5"/><path d="M8 15h8"/></svg></div>
+              <h3>Knows who's going cold</h3>
+              <p>A gentle signal when a relationship that mattered hasn't been touched in a while. No spammy reminders, just the few worth your attention now.</p>
+            </div>
+          </div>
+          <div class="b-shell b-third reveal">
+            <div class="b-core">
+              <div class="feat-ico" style="background:#e9e6df;color:var(--ink-soft)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+              <h3>Capture in a line</h3>
+              <p>Type one sentence after a call. Aperture parses the who, the what, and the follow-up.</p>
+            </div>
+          </div>
+          <div class="b-shell b-third reveal">
+            <div class="b-core">
+              <div class="feat-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></div>
+              <h3>Intros worth making</h3>
+              <p>Surfaces high-value connections across your network that you're uniquely placed to bridge.</p>
+            </div>
+          </div>
+          <div class="b-shell b-third reveal">
+            <div class="b-core">
+              <div class="feat-ico" style="background:#f1e6df;color:var(--clay)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 12l2 2 4-4"/></svg></div>
+              <h3>Private by design</h3>
+              <p>Your network is yours. End-to-end encrypted, never sold, never used to train anything.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUOTE -->
+    <section class="quote-sec" id="quote">
+      <div class="wrap">
+        <div class="quote-shell reveal">
+          <div class="quote-core">
+            <blockquote>"Your network doesn't decay because people change. It decays because you forget."</blockquote>
+            <div class="by">— The Aperture principle</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="final" id="pricing">
+      <div class="wrap">
+        <span class="eyebrow reveal"><span class="tick"></span> By invitation · 14-day trial</span>
+        <h2 class="reveal" style="margin-top:1.4rem">Nurture the few<br />that change everything.</h2>
+        <p class="reveal">Aperture is offered quietly, to founders and investors who treat relationships as the real portfolio.</p>
+        <div class="reveal" style="display:flex;justify-content:center">
+          <a class="pill" href="#top">Request your invitation
+            <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <a class="logo" href="#top">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.4 3.7M12 12 5.6 8.3M12 12l6.4-3.7"/></svg>
+        Aperture
+      </a>
+      <div class="fl"><a href="#features">Product</a><a href="#quote">Philosophy</a><a href="#pricing">Pricing</a><a href="#top">Privacy</a></div>
+      <span class="cr">© 2026 Aperture</span>
+    </div>
+  </footer>
+
+  <script>
+    // Fluid-island hamburger morph + staggered overlay
+    const burger = document.getElementById('burger');
+    const overlay = document.getElementById('overlay');
+    const toggle = (open) => {
+      burger.classList.toggle('x', open);
+      overlay.classList.toggle('open', open);
+      burger.setAttribute('aria-expanded', String(open));
+      document.body.style.overflow = open ? 'hidden' : '';
+    };
+    burger.addEventListener('click', () => toggle(!overlay.classList.contains('open')));
+    overlay.querySelectorAll('a').forEach(a => a.addEventListener('click', () => toggle(false)));
+
+    // Scroll-entry reveals via IntersectionObserver (no scroll listeners)
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    // Subtle magnetic pull on primary pills (skipped under reduced motion)
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches && matchMedia('(pointer: fine)').matches) {
+      document.querySelectorAll('.pill').forEach((btn) => {
+        btn.addEventListener('mousemove', (ev) => {
+          const r = btn.getBoundingClientRect();
+          const x = (ev.clientX - r.left - r.width / 2) * 0.18;
+          const y = (ev.clientY - r.top - r.height / 2) * 0.3;
+          btn.style.transform = `translate(${x}px, ${y}px)`;
+        });
+        btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
+      });
+    }
+  </script>
+</body>
+</html>
